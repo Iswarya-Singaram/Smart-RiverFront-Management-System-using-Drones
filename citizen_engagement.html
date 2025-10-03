@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Citizen Engagement Hub{% endblock %}
+
+{% block content %}
+
+<header class="text-center mb-8">
+    <h1 class="text-4xl font-bold text-gray-900">Citizen Engagement Hub</h1>
+    <p class="text-lg text-gray-600 mt-2">Get involved, report issues, and help protect our river.</p>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+    
+    <!-- Left Section: Report an Issue -->
+    <div class="lg:col-span-3">
+        <div class="card h-full">
+            <h2 class="text-2xl font-bold mb-4">Report an Issue</h2>
+            <form id="issueForm" class="space-y-4">
+                <div>
+                    <label for="issueType" class="block text-sm font-medium text-gray-700">Type of Issue</label>
+                    <select id="issueType" name="issueType" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        <option>Illegal Waste Dumping</option>
+                        <option>Visible Pollution / Discoloration</option>
+                        <option>Damaged Infrastructure</option>
+                        <option>Blocked Water Flow</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="description" name="description" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Provide details about the issue..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Pinpoint Location</label>
+                    <!-- Map container -->
+                    <div id="reportMap" class="w-full h-48 mt-1 rounded-md border"></div>
+                    <input type="hidden" id="reportLat" name="latitude">
+                    <input type="hidden" id="reportLng" name="longitude">
+                    <p id="locationText" class="text-xs text-gray-500 mt-1">Click on the map to set the issue location.</p>
+                </div>
+                <div>
+                    <label for="photo" class="block text-sm font-medium text-gray-700">Upload Photo (Optional)</label>
+                    <input type="file" id="photo" name="photo" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Section: Volunteer & Awareness -->
+    <div class="lg:col-span-2 space-y-8">
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Volunteer Opportunities</h2>
+            <div class="space-y-4">
+                <!-- Volunteer Event 1 (UPDATED) -->
+                <div class="p-4 border rounded-lg hover:bg-gray-50">
+                    <h3 class="font-semibold text-lg">Riverbank Cleanup Drive</h3>
+                    <p class="text-sm text-gray-600"><strong>Date:</strong> Sat, Oct 25, 2025</p>
+                    <p class="text-sm text-gray-600"><strong>Location:</strong> Sabarmati Riverfront Park, near Ellis Bridge</p>
+                    <button class="mt-2 w-full bg-green-500 text-white text-sm font-semibold py-2 px-4 rounded-md hover:bg-green-600">Sign Up</button>
+                </div>
+                <!-- Volunteer Event 2 (UPDATED) -->
+                <div class="p-4 border rounded-lg hover:bg-gray-50">
+                    <h3 class="font-semibold text-lg">Awareness Campaign & Plogging</h3>
+                    <p class="text-sm text-gray-600"><strong>Date:</strong> Sun, Nov 2, 2025</p>
+                    <p class="text-sm text-gray-600"><strong>Location:</strong> Walkway near Subhash Bridge</p>
+                    <button class="mt-2 w-full bg-green-500 text-white text-sm font-semibold py-2 px-4 rounded-md hover:bg-green-600">Learn More</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Spread Awareness</h2>
+            <p class="text-gray-600 mb-4">Every share counts! Help us spread the word about river conservation.</p>
+            <div class="flex space-x-2">
+                <a href="#" class="flex-1 text-center bg-blue-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-600">Share on X</a>
+                <a href="#" class="flex-1 text-center bg-green-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-700">Share on WhatsApp</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Leaflet map for reporting (UPDATED to Ahmedabad)
+    const reportMap = L.map('reportMap').setView([23.0225, 72.5714], 13); // Centered on Ahmedabad
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(reportMap);
+
+    let marker;
+    const latInput = document.getElementById('reportLat');
+    const lngInput = document.getElementById('reportLng');
+    const locationText = document.getElementById('locationText');
+
+    reportMap.on('click', function(e) {
+        if (marker) {
+            reportMap.removeLayer(marker);
+        }
+        marker = L.marker(e.latlng).addTo(reportMap);
+        latInput.value = e.latlng.lat.toFixed(5);
+        lngInput.value = e.latlng.lng.toFixed(5);
+        locationText.textContent = `Location Pinned: ${latInput.value}, ${lngInput.value}`;
+        locationText.classList.add('text-green-600', 'font-semibold');
+    });
+
+    // Handle form submission
+    const issueForm = document.getElementById('issueForm');
+    issueForm.addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent actual form submission
+        alert('Thank you! Your issue has been reported successfully.');
+        issueForm.reset(); // Clear the form
+        if (marker) {
+            reportMap.removeLayer(marker);
+        }
+        locationText.textContent = 'Click on the map to set the issue location.';
+        locationText.classList.remove('text-green-600', 'font-semibold');
+    });
+});
+</script>
+
+{% endblock %}

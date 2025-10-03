@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Aquatic Life Analysis{% endblock %}
+
+{% block content %}
+<header class="text-center mb-8">
+    <h1 class="text-4xl font-bold text-gray-900">Aquatic Organism Sustainability</h1>
+    <p class="text-lg text-gray-600 mt-2">Analyzing water quality for the health of local species.</p>
+</header>
+
+<!-- Aquatic Life Sustainability Insights Card (Full Width) -->
+<div class="card mb-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+        <svg class="w-7 h-7 mr-3 text-blue-600" xmlns="http://www.w3.org/2000/svg"  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13H2a10 10 0 0 0 10 10v-1Z"/><path d="M12 3a9.9 9.9 0 0 1 8.95 6.09 3 3 0 0 1-2.22 3.84c-.34.08-.69.09-1.03.04A5 5 0 0 0 12 15v5a10 10 0 0 0 10-10h-2A7 7 0 0 1 11 4V3Z"/></svg>
+        Aquatic Life Sustainability Insights
+    </h2>
+    <div id="sustainabilityInsights" class="space-y-3 text-gray-700">
+        <p>Analyzing water conditions for general aquatic health...</p>
+    </div>
+</div>
+
+<!-- Fish Health & Survival Analysis Title -->
+<div class="mb-6">
+     <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+        <svg class="w-7 h-7 mr-3 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 9.5-6 4.56 0 8.56 2.54 9.5 6-.94 3.46-4.94 6-9.5 6-4.56 0-8.56-2.54-9.5-6Z"/><path d="M18.5 7.5c-3.13 4.4-6.33 4.4-9.5 0"/></svg>
+        Fish Health & Survival Analysis
+    </h2>
+</div>
+
+<!-- Fish Analysis Grid (2 Columns) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div id="analysisResult" class="contents">
+        <!-- JS will populate fish cards here -->
+    </div>
+</div>
+
+
+<footer class="text-center mt-8 text-gray-500"><p>Last updated: <span id="lastUpdated">Never</span></p></footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const analysisResultEl = document.getElementById('analysisResult');
+        const sustainabilityInsightsEl = document.getElementById('sustainabilityInsights');
+        const lastUpdatedEl = document.getElementById('lastUpdated');
+
+        const fetchData = async () => {
+            try {
+                const response = await fetch('/get_data');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                
+                lastUpdatedEl.textContent = new Date().toLocaleTimeString();
+                runFishAnalysis(data.temperature, data.tds, data.turbidity, data.ph);
+                updateSustainabilityInsights(data.temperature, data.tds, data.turbidity, data.ph);
+            } catch (error) {
+                console.error("Could not fetch analysis data:", error);
+                analysisResultEl.innerHTML = '<p>Could not load sensor data. Please check the connection.</p>';
+            }
+        };
+        
+        setInterval(fetchData, 2000); // Fetch data every 2 seconds to match simulation
+        fetchData();
+
+        function runFishAnalysis(temp, tds, turbidity, ph) {
+            // --- UPDATED FISH PROFILES ---
+            const fishProfiles = [
+                { name: 'Rohu (Labeo rohita)', tempRange: [25, 32], tdsRange: [200, 500], turbidityMax: 10, phRange: [6.5, 8.5] },
+                { name: 'Catla (Catla catla)', tempRange: [25, 32], tdsRange: [200, 500], turbidityMax: 10, phRange: [6.5, 8.5] },
+                { name: 'Tilapia', tempRange: [25, 30], tdsRange: [100, 1000], turbidityMax: 25, phRange: [6.0, 9.0] },
+                { name: 'Common Carp', tempRange: [20, 25], tdsRange: [100, 800], turbidityMax: 30, phRange: [6.5, 9.0] },
+            ];
+            // --- END OF UPDATES ---
+
+            let analysisHTML = '';
+            fishProfiles.forEach(fish => {
+                const results = {
+                    temp: checkRange(temp, fish.tempRange),
+                    tds: checkRange(tds, fish.tdsRange),
+                    turbidity: checkMax(turbidity, fish.turbidityMax),
+                    ph: checkRange(ph, fish.phRange)
+                };
+                let overallStatus = 'good';
+                if (Object.values(results).includes('danger')) overallStatus = 'danger';
+                else if (Object.values(results).includes('warning')) overallStatus = 'warning';
+                
+                analysisHTML += `
+                    <div class="card border-l-4 ${getStatusBorderColor(overallStatus)}">
+                        <h3 class="font-bold text-xl text-gray-900 mb-3">${fish.name}</h3>
+                        <ul class="list-none space-y-2">
+                            ${generateListItem('Temperature', results.temp, `${temp.toFixed(1)}°C`)}
+                            ${generateListItem('TDS', results.tds, `${tds.toFixed(0)} ppm`)}
+                            ${generateListItem('Turbidity', results.turbidity, `${turbidity.toFixed(1)} NTU`)}
+                            ${generateListItem('pH', results.ph, `${ph.toFixed(1)}`)}
+                        </ul>
+                    </div>
+                `;
+            });
+            analysisResultEl.innerHTML = analysisHTML;
+        }
+
+        function updateSustainabilityInsights(temp, tds, turbidity, ph) {
+            let insights = [];
+            const generalIdeal = { phRange: [6.5, 8.5], turbidityMax: 5, tdsMax: 800 };
+
+            if (ph < generalIdeal.phRange[0] || ph > generalIdeal.phRange[1]) {
+                let condition = ph < generalIdeal.phRange[0] ? 'Acidic' : 'Alkaline';
+                insights.push({ status: 'danger', text: `<strong>${condition} Water (pH ${ph.toFixed(1)})</strong>: Can cause gill damage and respiratory stress to aquatic life.` });
+            } else {
+                insights.push({ status: 'good', text: `<strong>Stable pH (${ph.toFixed(1)})</strong>: The pH level is within a safe range for most species.` });
+            }
+
+            if (turbidity > generalIdeal.turbidityMax) {
+                let severity = turbidity > generalIdeal.turbidityMax + 5 ? 'High' : 'Moderate';
+                insights.push({ status: 'danger', text: `<strong>${severity} Turbidity (${turbidity.toFixed(1)} NTU)</strong>: Cloudy water clogs fish gills and blocks sunlight for plants.` });
+            }
+
+            if (tds > generalIdeal.tdsMax) {
+                insights.push({ status: 'warning', text: `<strong>High TDS (${tds.toFixed(0)} ppm)</strong>: High dissolved solids can disrupt fish osmoregulation, causing stress.` });
+            }
+
+            if (insights.length === 1 && insights[0].status === 'good') {
+                insights = [{ status: 'good', text: '<strong>Excellent Conditions</strong>: All measured parameters appear to be within a healthy range.' }];
+            }
+            sustainabilityInsightsEl.innerHTML = insights.map(i => `
+                <div class="flex items-start space-x-3 p-3 rounded-lg ${getStatusBgColor(i.status)}">
+                    <div class="status-dot ${getStatusColor(i.status)} mt-1.5 flex-shrink-0"></div>
+                    <p>${i.text}</p>
+                </div>`).join('');
+        }
+
+        // --- Helper Functions ---
+        function checkRange(value, range) { const [min, max] = range; const tolerance = (max - min) * 0.1; if (value >= min && value <= max) return 'good'; if (value >= min - tolerance && value <= max + tolerance) return 'warning'; return 'danger'; }
+        function checkMax(value, max) { const tolerance = max * 0.2; if (value <= max) return 'good'; if (value <= max + tolerance) return 'warning'; return 'danger'; }
+        function generateListItem(param, status, value) {
+            const icon = { good: '✅', warning: '⚠️', danger: '❌' };
+            return `<li class="flex items-center text-sm ${getStatusTextColor(status)}"><span class="mr-2">${icon[status]}</span> <strong>${param}:</strong><span class="ml-auto font-mono">${value}</span></li>`;
+        }
+        function getStatusColor(status) { if (status === 'good') return 'bg-green-500'; if (status === 'warning') return 'bg-yellow-500'; return 'bg-red-500'; }
+        function getStatusTextColor(status) { if (status === 'good') return 'text-gray-700'; if (status === 'warning') return 'text-yellow-700'; return 'text-red-700'; }
+        function getStatusBgColor(status) { if (status === 'good') return 'bg-green-50'; if (status === 'warning') return 'bg-yellow-50'; return 'bg-red-50'; }
+        function getStatusBorderColor(status) { if (status === 'good') return 'border-green-400'; if (status === 'warning') return 'border-yellow-400'; return 'border-red-400'; }
+    });
+</script>
+{% endblock %}

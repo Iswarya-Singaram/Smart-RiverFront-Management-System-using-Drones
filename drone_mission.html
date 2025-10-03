@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Drone Detection Mission{% endblock %}
+
+{% block content %}
+<header class="text-center mb-8">
+    <h1 class="text-4xl font-bold text-gray-900">Autonomous Detection Mission</h1>
+    <p class="text-lg text-gray-600 mt-2">Plan and launch an autonomous survey mission.</p>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4">Mission Planner</h2>
+        
+        <div class="mb-4">
+            <label for="location" class="block text-sm font-medium text-gray-700">Go to Location (Lat, Lng)</label>
+            <div class="flex gap-2 mt-1">
+                <input type="text" id="latInput" placeholder="23.0225" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                <input type="text" id="lngInput" placeholder="72.5714" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                <button id="goToBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Go</button>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold">Instructions</h3>
+            <p class="text-gray-600 text-sm mt-1">Click on the map to add waypoints for the drone's survey path. Click a marker to adjust its altitude.</p>
+        </div>
+
+        <div class="space-y-3">
+             <button id="startMissionBtn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">Start Mission</button>
+             <button id="clearWaypointsBtn" class="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition-colors">Clear Waypoints</button>
+        </div>
+
+        <div id="waypointsList" class="mt-6">
+            <h3 class="font-semibold text-gray-800">Waypoints:</h3>
+            <ul id="waypoints-ul" class="list-decimal list-inside text-gray-600 mt-2 text-sm space-y-1"></ul>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-8">
+        <div class="bg-white p-2 rounded-lg shadow-md">
+            <div id="liveFeed" class="hidden w-full h-[600px] bg-black text-white flex items-center justify-center">
+                <div class="text-center">
+                    <h2 class="text-3xl">DRONE LIVE FEED</h2>
+                    <p class="text-gray-400">Connecting to drone camera...</p>
+                    <div class="mt-4 w-16 h-16 border-4 border-dashed rounded-full animate-spin border-red-500 mx-auto"></div>
+                </div>
+            </div>
+            <div id="map" class="w-full h-[600px] rounded-md"></div>
+        </div>
+        <div id="missionLog" class="card hidden">
+            <h2 class="text-2xl font-bold mb-4">Mission Log</h2>
+            <div class="h-48 bg-gray-900 text-white font-mono text-sm p-4 rounded-lg overflow-y-auto">
+                <ul id="logList" class="space-y-1"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let waypoints = [];
+    function updateAltitude(index, newAltitude) {
+        if (waypoints[index]) {
+            waypoints[index].alt = parseInt(newAltitude, 10);
+            document.dispatchEvent(new CustomEvent('waypointsUpdated'));
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const startMissionBtn = document.getElementById('startMissionBtn');
+        const clearWaypointsBtn = document.getElementById('clearWaypointsBtn');
+        const liveFeedDiv = document.getElementById('liveFeed');
+        const mapDiv = document.getElementById('map');
+        const missionLogDiv = document.getElementById('missionLog');
+        const logList = document.getElementById('logList');
+        const waypointsUl = document.getElementById('waypoints-ul');
+        const goToBtn = document.getElementById('goToBtn');
+        const latInput = document.getElementById('latInput');
+        const lngInput = document.getElementById('lngInput');
+
+        const map = L.map('map').setView([23.0225, 72.5714], 14);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        }).addTo(map);
+
+        let markers = [];
+        let polyline = L.polyline([], { color: 'yellow' }).addTo(map);
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => map.setView({ lat: position.coords.latitude, lng: position.coords.longitude }, 16),
+                () => console.warn("Could not get user location.")
+            );
+        }
+
+        const updateWaypointsList = () => {
+            waypointsUl.innerHTML = waypoints.length === 0 
+                ? '<li class="text-gray-400">No waypoints added.</li>'
+                : waypoints.map((p, i) => `<li><b>P${i + 1}:</b> ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}, <b>Alt:</b> ${p.alt}m</li>`).join('');
+        };
+
+        map.on('click', (e) => {
+            const index = waypoints.length;
+            const defaultAlt = 25; // General survey altitude
+            const newWaypoint = { lat: e.latlng.lat, lng: e.latlng.lng, alt: defaultAlt };
+            waypoints.push(newWaypoint);
+
+            const popupContent = `
+                <div class="text-sm"><b>Waypoint ${index + 1}</b><br><b>Lat:</b> ${newWaypoint.lat.toFixed(4)}<br>
+                <b>Lng:</b> ${newWaypoint.lng.toFixed(4)}<br><label class="font-semibold">Altitude (m):</label>
+                <input type="number" value="${newWaypoint.alt}" onchange="updateAltitude(${index}, this.value)" class="w-full p-1 border rounded mt-1"></div>`;
+            
+            markers.push(L.marker(e.latlng).addTo(map).bindPopup(popupContent));
+            polyline.addLatLng(e.latlng);
+            updateWaypointsList();
+        });
+
+        document.addEventListener('waypointsUpdated', updateWaypointsList);
+        
+        goToBtn.addEventListener('click', () => {
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+            if (!isNaN(lat) && !isNaN(lng)) map.setView([lat, lng], 15);
+        });
+
+        const addLogMessage = (message, type = 'info') => {
+            const colors = { info: 'text-gray-300', success: 'text-green-400', warning: 'text-yellow-400', danger: 'text-red-400' };
+            logList.innerHTML += `<li><span class="text-cyan-400">[${new Date().toLocaleTimeString()}]</span> <span class="${colors[type]}">${message}</span></li>`;
+            logList.scrollTop = logList.scrollHeight;
+        };
+
+        startMissionBtn.addEventListener('click', () => {
+            if (waypoints.length < 1) return alert('Please add at least one waypoint.');
+            
+            mapDiv.classList.add('hidden');
+            liveFeedDiv.classList.remove('hidden');
+            missionLogDiv.classList.remove('hidden');
+            logList.innerHTML = '';
+
+            // --- UNIFIED MISSION LOGIC (UPDATED) ---
+            addLogMessage(`Autonomous survey mission started.`, 'success');
+            addLogMessage(`Ascending to ${waypoints[0].alt}m...`, 'info');
+            setTimeout(() => addLogMessage(`Proceeding to Waypoint 1...`), 2000);
+            setTimeout(() => addLogMessage(`Scanning area with RGB camera...`), 4000); // <-- UPDATED
+            setTimeout(() => addLogMessage(`Analyzing live feed with YOLO model...`), 6000); // <-- ADDED
+
+            // Randomly decide what is detected
+            const isHumanDetected = Math.random() > 0.5;
+
+            if (isHumanDetected) {
+                // Human Detection Sequence
+                setTimeout(() => addLogMessage(`YOLO Model Alert: Human detected!`, "danger"), 8000); // <-- UPDATED
+                setTimeout(() => addLogMessage(`CRITICAL: Confirming human presence and logging coordinates.`, "danger"), 9500);
+                setTimeout(() => addLogMessage(`Notifying authorities with live feed and location data.`, "danger"), 11000);
+            } else {
+                // Waste Detection Sequence
+                setTimeout(() => addLogMessage(`YOLO Model Alert: Waste pile detected!`, "warning"), 8000); // <-- UPDATED
+                setTimeout(() => addLogMessage(`Confirming waste classification and volume estimate.`, 'warning'), 9500);
+                setTimeout(() => addLogMessage(`LOGGED: Waste pile at current coordinates for cleanup crew.`, "info"), 11000);
+            }
+        });
+
+        clearWaypointsBtn.addEventListener('click', () => {
+            waypoints = [];
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            polyline.setLatLngs([]);
+            updateWaypointsList();
+            missionLogDiv.classList.add('hidden');
+            liveFeedDiv.classList.add('hidden');
+            mapDiv.classList.remove('hidden');
+        });
+
+        updateWaypointsList();
+    });
+</script>
+{% endblock %}
