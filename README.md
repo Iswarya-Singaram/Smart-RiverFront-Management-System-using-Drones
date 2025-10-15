@@ -1,8 +1,7 @@
-# Smart-RiverFront-Management-System-using-Drones
+# 🌊 Smart Autonomous Riverfront Management System  
 Design File Drive Link:
 https://drive.google.com/drive/folders/1U8e2riaNZgKBY7UARJg0z6c4vCxNJoVI?usp=sharing
 
-# 🌊 Smart Autonomous Riverfront Management System  
 ### An Innovative Solution for the Smart Management of the Sabarmati Riverfront  
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
